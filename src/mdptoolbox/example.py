@@ -49,6 +49,48 @@ Available functions
 import numpy as _np
 import scipy.sparse as _sp
 
+from functools import reduce
+
+# returns Ps as an array, indexed first by action and then by subsystem
+def multiagent(S=10, N=4, pslow = 0.9, pfast = 0.2):
+    """Generate a MDP example for N random agents, each with state space size S
+       Assume two actions: fast or slow
+    """
+    assert S > 1, "The number of states S must be greater than 1."
+    assert N > 1, "The number of agents N must be greater than 1."
+    # Definition of Transition matrices
+    Ps = _np.zeros((2,N,S,S))
+    for i in range(N):
+        Ps[0][i] = _np.zeros((S, S))
+        Ps[0][i][:, :] += (1 - pslow)/2 * _np.diag(_np.ones(S - 1), 1)
+        Ps[0][i][:, :] += (1 - pslow)/2 * _np.diag(_np.ones(S - 1), -1)
+        Ps[0][i][0, -1] += (1 - pslow)/2
+        Ps[0][i][-1, 0] += (1 - pslow)/2
+        Ps[0][i][:, :] += pslow * _np.diag(_np.ones(S))
+
+        Ps[1][i] = _np.zeros((S, S))
+        Ps[1][i][:, :] += (1 - pfast)/2 * _np.diag(_np.ones(S - 1), 1)
+        Ps[1][i][:, :] += (1 - pfast)/2 * _np.diag(_np.ones(S - 1), -1)
+        Ps[1][i][:, :] += pfast * _np.diag(_np.ones(S))
+        Ps[1][i][0, -1] += (1 - pfast)/2
+        Ps[1][i][-1, 0] += (1 - pfast)/2
+    # Definition of Reward matrix
+    # Reward for both agents moving slowly in last state
+    R = _np.zeros((S**N, 2))
+    R[-1, 0] = 1
+    R[:, 1] = _np.zeros(S**N)
+    R[0, 1] = 0
+    R[S - 1, 1] = 1
+    return(Ps, R)
+
+def multiagent_full(S=10, N=4, pslow = 0.9, pfast = 0.2):
+    Ps, R = multiagent(S, N, pslow, pfast)
+    Ps0 = [P for P in Ps[0]]
+    Ps1 = [P for P in Ps[1]]
+    P0 = reduce(lambda x, y: _np.dot(x,y), _np.identity(S**N), Ps0)
+    P1 = reduce(lambda x, y: _np.dot(x,y), _np.identity(S**N), Ps1)
+    return [P0, P1], R
+
 
 def forest(S=3, r1=4, r2=2, p=0.1, is_sparse=False):
     """Generate a MDP example based on a simple forest management scenario.
